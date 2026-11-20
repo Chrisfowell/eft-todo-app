@@ -102,3 +102,9 @@ begin
   begin alter publication supabase_realtime add table public.tasks; exception when duplicate_object then null; end;
   begin alter publication supabase_realtime add table public.contacts; exception when duplicate_object then null; end;
 end $$;
+
+-- Table permissions (newer Supabase projects don't grant these automatically).
+-- Row-level security above still decides which rows each person can see.
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete on public.profiles, public.contacts, public.tasks to authenticated, service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated, service_role;
