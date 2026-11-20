@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "EFT To-Do",
+    "slug": "eft-todo-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#212429"
+    },
+    "android": {
+      "package": "com.eftgroup.todo",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FC5103"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": []
+  }
+}
