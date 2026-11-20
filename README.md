@@ -37,3 +37,15 @@ After you have signed up in the app for the first time, run `supabase/2-move-my-
 
 - `src/config.ts` holds the Supabase address and publishable key, and how many days it takes a task to move up a priority level.
 - After everyone who needs the app has signed up, you can stop new sign-ups in Supabase under **Authentication → Sign In / Providers → Allow new users to sign up**.
+
+## Claude connector (add tasks by talking to Claude)
+
+`supabase/functions/todo-mcp/index.ts` is a small server that lets Claude add, find, update and tick off tasks, and save contacts.
+
+1. Supabase → **Edge Functions → Secrets**: add `MCP_TOKEN` with a long random value.
+2. Supabase → **Edge Functions → Deploy a new function → Via editor**: name it `todo-mcp`, paste in `index.ts`, deploy.
+3. Open the function's **Details/Settings** and turn **off** "Verify JWT" / "Enforce JWT verification".
+4. claude.ai → **Customize → Connectors → + Add → Add custom connector**:
+   - Name: `EFT To-Do`
+   - URL: `https://vjebblfgvkrhafpgltha.supabase.co/functions/v1/todo-mcp`
+   - Authentication: no sign-in, with a request header `Authorization` = `Bearer <your MCP_TOKEN>`

@@ -1,0 +1,2 @@
+[functions.todo-mcp]
+verify_jwt = false
