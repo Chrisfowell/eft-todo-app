@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddTask } from '../components/AddTask';
 import { Briefing } from '../components/Briefing';
 import { Confetti } from '../components/Confetti';
+import { ConnectClaude } from '../components/ConnectClaude';
 import { ContactsView } from '../components/ContactsView';
 import { TaskCard } from '../components/TaskCard';
 import { TaskEditor } from '../components/TaskEditor';
@@ -42,6 +43,7 @@ export function Main({ userId }: { userId: string }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [confetti, setConfetti] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loaded = useRef(false);
 
@@ -146,8 +148,9 @@ export function Main({ userId }: { userId: string }) {
   const account = () => {
     const p = data.people.find((x) => x.id === me);
     Alert.alert(p?.name || 'Your account', p?.email ?? '', [
-      { text: 'Close', style: 'cancel' },
+      { text: 'Connect to Claude', onPress: () => setConnectOpen(true) },
       { text: 'Sign out', style: 'destructive', onPress: () => supabase.auth.signOut() },
+      { text: 'Close', style: 'cancel' },
     ]);
   };
 
@@ -432,6 +435,7 @@ export function Main({ userId }: { userId: string }) {
         onSave={save}
         onDelete={remove}
       />
+      <ConnectClaude visible={connectOpen} onClose={() => setConnectOpen(false)} />
       <Confetti run={confetti} onDone={confettiDone} />
       <Toast toast={toast} onUndo={() => toast?.undo?.()} />
     </View>

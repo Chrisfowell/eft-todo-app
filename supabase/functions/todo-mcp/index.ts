@@ -1,10 +1,12 @@
 // EFT To-Do connector for Claude (remote MCP server, Streamable HTTP, JSON responses).
 // Runs as a Supabase Edge Function. Claude calls it to add, find, update and complete tasks.
 //
+// Who is calling: Claude sends "Authorization: Bearer <key>".
+//   - A personal key made in the app (Account > Connect to Claude) acts as that person.
+//   - MCP_TOKEN (optional, the original shared key) acts as OWNER_ID, or the first account created.
 // Secrets (Supabase > Edge Functions > Secrets):
-//   MCP_TOKEN  - required. Claude sends it as "Authorization: Bearer <MCP_TOKEN>".
-//   SERVICE_KEY - recommended. The project's secret key, so the connector can read and write tasks.
-//   OWNER_ID   - optional. The account tasks are created for. Defaults to the first account created.
+//   SERVICE_KEY - required. The project's secret key, so the connector can read and write tasks.
+//   MCP_TOKEN, OWNER_ID - optional, see above.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 // JWT verification must be OFF for this function (Claude does not send a Supabase login).
 
@@ -24,19 +26,25 @@ function londonToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
 }
 
-let ownerCache: string | null = null;
-async function ownerId(): Promise<string> {
-  if (ownerCache) return ownerCache;
-  const fromEnv = Deno.env.get('OWNER_ID');
-  if (fromEnv) return (ownerCache = fromEnv);
-  if (!KEY) throw new Error('Setup problem: add the SERVICE_KEY secret to this Edge Function.');
-  const { data, error } = await db.from('profiles').select('id').order('created_at').limit(1);
-  if (error) throw new Error(`Database error: ${error.message}`);
-  if (!data?.length)
-    throw new Error(
-      'No account visible. Either no one has signed up in the app yet, or the SERVICE_KEY secret is missing or wrong.',
-    );
-  return (ownerCache = data[0].id as string);
+async function sha256Hex(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Works out whose account a request acts for, from its bearer key. Null = not allowed. */
+async function resolveUser(authHeader: string | null): Promise<string | null> {
+  const m = /^Bearer\s+(.+)$/i.exec(authHeader ?? '');
+  if (!m) return null;
+  const key = m[1].trim();
+  const shared = Deno.env.get('MCP_TOKEN');
+  if (shared && key === shared) {
+    const fromEnv = Deno.env.get('OWNER_ID');
+    if (fromEnv) return fromEnv;
+    const { data } = await db.from('profiles').select('id').order('created_at').limit(1);
+    return (data?.[0]?.id as string) ?? null;
+  }
+  const { data } = await db.from('connector_keys').select('user_id').eq('key_hash', await sha256Hex(key)).maybeSingle();
+  return (data?.user_id as string) ?? null;
 }
 
 function effPri(t: any, today: string): string {
@@ -120,7 +128,7 @@ const TOOLS = [
   {
     name: 'add_task',
     description:
-      "Add a task to Christian's EFT To-Do app. Interpret the request: pick work or personal, the job type, site, due date/time and priority. Ask only if it is genuinely unclear whether it's work or personal. For meetings and surveys with a date, the result includes a calendar step: follow it to add the event to his Outlook calendar.",
+      "Add a task to the user's EFT To-Do app. Interpret the request: pick work or personal, the job type, site, due date/time and priority. Ask only if it is genuinely unclear whether it's work or personal. For meetings and surveys with a date, the result includes a calendar step: follow it to add the event to their Outlook calendar.",
     inputSchema: { type: 'object', properties: taskProps, required: ['title', 'section'] },
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
@@ -186,9 +194,8 @@ const TOOLS = [
   },
 ];
 
-async function callTool(name: string, a: any): Promise<unknown> {
+async function callTool(name: string, a: any, me: string): Promise<unknown> {
   const today = londonToday();
-  const me = await ownerId();
 
   if (name === 'add_task') {
     const f = cleanTaskFields(a);
@@ -208,10 +215,10 @@ async function callTool(name: string, a: any): Promise<unknown> {
       (data.type === 'meeting' || data.type === 'survey') && data.due
         ? {
             next_step:
-              "Also put this in Christian's Outlook calendar now with the Microsoft 365 connector (outlook_create_event), " +
+              "Also put this in the user's Outlook calendar now with the Microsoft 365 connector (outlook_create_event), " +
               'without asking first. Use the task title as the subject, the job as the location, time zone Europe/London, ' +
               'and one hour long. If no time was given, make it an all-day event. If the Microsoft 365 connector is not ' +
-              'available, tell him the task was added but the calendar entry was not.',
+              'available, tell them the task was added but the calendar entry was not.',
             subject: data.title,
             location: data.job || undefined,
             date: data.due,
@@ -287,10 +294,10 @@ async function callTool(name: string, a: any): Promise<unknown> {
 // ---------- MCP plumbing ----------
 
 const INSTRUCTIONS =
-  "This is Christian's EFT To-Do app (EFT Group, fire alarm work). When he asks to add something to his to-do list, " +
+  "This is the user's EFT To-Do app (EFT Group, fire alarm work). When they ask to add something to their to-do list, " +
   'use add_task and interpret it yourself: work vs personal, job type, site, due date/time and priority. ' +
   'Only ask if it is genuinely unclear whether it is work or personal. To tick off or change a task, find it with list_tasks first. ' +
-  'Meetings and surveys with a date also go in his Outlook calendar (add_task says when): create the event with the ' +
+  'Meetings and surveys with a date also go in their Outlook calendar (add_task says when): create the event with the ' +
   'Microsoft 365 connector straight away. If a meeting is moved or cancelled, update or delete its Outlook event too.';
 
 function rpcResult(id: unknown, result: unknown) {
@@ -300,7 +307,7 @@ function rpcError(id: unknown, code: number, message: string) {
   return { jsonrpc: '2.0', id, error: { code, message } };
 }
 
-async function handle(msg: any): Promise<unknown | null> {
+async function handle(msg: any, me: string): Promise<unknown | null> {
   const { id, method, params } = msg ?? {};
   if (id === undefined || id === null) return null; // notification: no reply
   switch (method) {
@@ -317,7 +324,7 @@ async function handle(msg: any): Promise<unknown | null> {
       return rpcResult(id, { tools: TOOLS });
     case 'tools/call': {
       try {
-        const out = await callTool(params?.name, params?.arguments ?? {});
+        const out = await callTool(params?.name, params?.arguments ?? {}, me);
         return rpcResult(id, {
           content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
           structuredContent: out,
@@ -338,10 +345,9 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req) => {
-  const token = Deno.env.get('MCP_TOKEN');
-  if (!token || req.headers.get('authorization') !== `Bearer ${token}`) {
-    return json({ error: 'unauthorized' }, 401);
-  }
+  if (!KEY) return json({ error: 'Setup problem: add the SERVICE_KEY secret to this Edge Function.' }, 500);
+  const me = await resolveUser(req.headers.get('authorization'));
+  if (!me) return json({ error: 'unauthorized: check the connector key in Claude' }, 401);
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   let body: any;
   try {
@@ -350,9 +356,9 @@ Deno.serve(async (req) => {
     return json(rpcError(null, -32700, 'Parse error'), 400);
   }
   if (Array.isArray(body)) {
-    const replies = (await Promise.all(body.map(handle))).filter((r) => r !== null);
+    const replies = (await Promise.all(body.map((m: any) => handle(m, me)))).filter((r) => r !== null);
     return replies.length ? json(replies) : new Response(null, { status: 202 });
   }
-  const reply = await handle(body);
+  const reply = await handle(body, me);
   return reply === null ? new Response(null, { status: 202 }) : json(reply);
 });

@@ -40,12 +40,18 @@ After you have signed up in the app for the first time, run `supabase/2-move-my-
 
 ## Claude connector (add tasks by talking to Claude)
 
-`supabase/functions/todo-mcp/index.ts` is a small server that lets Claude add, find, update and tick off tasks, and save contacts.
+`supabase/functions/todo-mcp/index.ts` is a small server that lets Claude add, find, update and tick off tasks, save contacts, and put meetings and surveys in the person's Outlook calendar (through their own Microsoft 365 connector in Claude).
 
-1. Supabase → **Edge Functions → Secrets**: add `MCP_TOKEN` with a long random value, and `SERVICE_KEY` with the secret key from **Project Settings → API Keys → Secret keys**.
-2. Supabase → **Edge Functions → Deploy a new function → Via editor**: name it `todo-mcp`, paste in `index.ts`, deploy.
-3. Open the function's **Details/Settings** and turn **off** "Verify JWT" / "Enforce JWT verification".
-4. claude.ai → **Customize → Connectors → + Add → Add custom connector**:
-   - Name: `EFT To-Do`
-   - URL: `https://vjebblfgvkrhafpgltha.supabase.co/functions/v1/todo-mcp`
-   - Authentication: no sign-in, with a request header `Authorization` = `Bearer <your MCP_TOKEN>`
+Each person uses their own key, so tasks go on their own account.
+
+**Set up once (admin):**
+1. Supabase → **SQL Editor**: run `supabase/3-connector-keys.sql`.
+2. Supabase → **Edge Functions → Secrets**: add `SERVICE_KEY` = the secret key from **Project Settings → API Keys → Secret keys**.
+3. Supabase → **Edge Functions → todo-mcp → Code**: paste in `index.ts` and deploy. Under **Details**, keep **Verify JWT** off.
+
+**Each person:**
+1. In the app, tap the EFT logo → **Connect to Claude** → **Make my key**, and copy it.
+2. claude.ai → **Customize → Connectors → + Add → Add custom connector**. Name `EFT To-Do`, URL `https://vjebblfgvkrhafpgltha.supabase.co/functions/v1/todo-mcp`, **No sign in**, request header `Authorization` = the copied key (it starts `Bearer eft_`).
+3. Set the EFT To-Do tools to **Always allow**.
+
+The older shared `MCP_TOKEN` secret still works and acts as the first account created. Remove it once you've switched to your personal key.
