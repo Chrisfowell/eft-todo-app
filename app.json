@@ -21,6 +21,11 @@
       },
       "edgeToEdgeEnabled": true
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "c3c0b769-aab9-4753-be12-683501dc70f1"
+      }
+    }
   }
 }
