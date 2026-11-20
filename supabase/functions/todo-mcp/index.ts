@@ -3,14 +3,18 @@
 //
 // Secrets (Supabase > Edge Functions > Secrets):
 //   MCP_TOKEN  - required. Claude sends it as "Authorization: Bearer <MCP_TOKEN>".
+//   SERVICE_KEY - recommended. The project's secret key, so the connector can read and write tasks.
 //   OWNER_ID   - optional. The account tasks are created for. Defaults to the first account created.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 // JWT verification must be OFF for this function (Claude does not send a Supabase login).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-  auth: { persistSession: false },
+// SERVICE_KEY: your project's secret key (Project Settings > API Keys > Secret keys).
+// Falls back to the legacy service role key Supabase provides automatically.
+const KEY = Deno.env.get('SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const db = createClient(Deno.env.get('SUPABASE_URL')!, KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
 const TYPES = ['quote', 'ce', 'fault', 'install', 'service', 'survey', 'meeting', 'other'];
@@ -25,8 +29,13 @@ async function ownerId(): Promise<string> {
   if (ownerCache) return ownerCache;
   const fromEnv = Deno.env.get('OWNER_ID');
   if (fromEnv) return (ownerCache = fromEnv);
+  if (!KEY) throw new Error('Setup problem: add the SERVICE_KEY secret to this Edge Function.');
   const { data, error } = await db.from('profiles').select('id').order('created_at').limit(1);
-  if (error || !data?.length) throw new Error('No account found. Sign up in the app first.');
+  if (error) throw new Error(`Database error: ${error.message}`);
+  if (!data?.length)
+    throw new Error(
+      'No account visible. Either no one has signed up in the app yet, or the SERVICE_KEY secret is missing or wrong.',
+    );
   return (ownerCache = data[0].id as string);
 }
 
