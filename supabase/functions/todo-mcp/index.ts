@@ -120,7 +120,7 @@ const TOOLS = [
   {
     name: 'add_task',
     description:
-      "Add a task to Christian's EFT To-Do app. Interpret the request: pick work or personal, the job type, site, due date/time and priority. Ask only if it is genuinely unclear whether it's work or personal.",
+      "Add a task to Christian's EFT To-Do app. Interpret the request: pick work or personal, the job type, site, due date/time and priority. Ask only if it is genuinely unclear whether it's work or personal. For meetings and surveys with a date, the result includes a calendar step: follow it to add the event to his Outlook calendar.",
     inputSchema: { type: 'object', properties: taskProps, required: ['title', 'section'] },
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
@@ -203,7 +203,22 @@ async function callTool(name: string, a: any): Promise<unknown> {
       .select()
       .single();
     if (error) throw new Error(error.message);
-    return { added: summarise(data, today), today };
+    const added = summarise(data, today);
+    const calendar =
+      (data.type === 'meeting' || data.type === 'survey') && data.due
+        ? {
+            next_step:
+              "Also put this in Christian's Outlook calendar now with the Microsoft 365 connector (outlook_create_event), " +
+              'without asking first. Use the task title as the subject, the job as the location, time zone Europe/London, ' +
+              'and one hour long. If no time was given, make it an all-day event. If the Microsoft 365 connector is not ' +
+              'available, tell him the task was added but the calendar entry was not.',
+            subject: data.title,
+            location: data.job || undefined,
+            date: data.due,
+            time: data.due_time || undefined,
+          }
+        : undefined;
+    return { added, today, calendar };
   }
 
   if (name === 'list_tasks') {
@@ -274,7 +289,9 @@ async function callTool(name: string, a: any): Promise<unknown> {
 const INSTRUCTIONS =
   "This is Christian's EFT To-Do app (EFT Group, fire alarm work). When he asks to add something to his to-do list, " +
   'use add_task and interpret it yourself: work vs personal, job type, site, due date/time and priority. ' +
-  'Only ask if it is genuinely unclear whether it is work or personal. To tick off or change a task, find it with list_tasks first.';
+  'Only ask if it is genuinely unclear whether it is work or personal. To tick off or change a task, find it with list_tasks first. ' +
+  'Meetings and surveys with a date also go in his Outlook calendar (add_task says when): create the event with the ' +
+  'Microsoft 365 connector straight away. If a meeting is moved or cancelled, update or delete its Outlook event too.';
 
 function rpcResult(id: unknown, result: unknown) {
   return { jsonrpc: '2.0', id, result };
