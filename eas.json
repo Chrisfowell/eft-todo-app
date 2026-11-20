@@ -11,7 +11,8 @@
       },
       "env": {
         "EAS_NO_FROZEN_LOCKFILE": "1"
-      }
+      },
+      "node": "22.14.0"
     },
     "production": {
       "android": {
@@ -19,7 +20,8 @@
       },
       "env": {
         "EAS_NO_FROZEN_LOCKFILE": "1"
-      }
+      },
+      "node": "22.14.0"
     }
   }
 }
