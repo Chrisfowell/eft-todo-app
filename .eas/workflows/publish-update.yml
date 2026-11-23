@@ -1,0 +1,16 @@
+# Sends every change on main to installed apps as an over-the-air update.
+# Only code and image changes go this way; anything needing a new native
+# module still needs a full Android build.
+name: Publish app update
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  publish_update:
+    name: Publish update to installed apps
+    type: update
+    params:
+      branch: preview
+      message: ${{ github.commit_message }}

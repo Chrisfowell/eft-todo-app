@@ -55,3 +55,13 @@ Each person uses their own key, so tasks go on their own account.
 3. Set the EFT To-Do tools to **Always allow**.
 
 The older shared `MCP_TOKEN` secret still works and acts as the first account created. Remove it once you've switched to your personal key.
+
+## Automatic updates
+
+From version 1.2.0 the app updates itself. Every change pushed to `main` is published by Expo
+(`.eas/workflows/publish-update.yml`) and installed apps download it the next time they're opened;
+it takes effect after the app is closed and opened again.
+
+- Keep `version` in `app.json` the same (1.2.0) for these updates: they only reach apps built with the same version.
+- Changes that add a new native feature (for example a new permission or native library) need a full Android build,
+  a new `version`, and everyone installing the new build once.
