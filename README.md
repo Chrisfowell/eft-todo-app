@@ -65,3 +65,19 @@ it takes effect after the app is closed and opened again.
 - Keep `version` in `app.json` the same (1.2.0) for these updates: they only reach apps built with the same version.
 - Changes that add a new native feature (for example a new permission or native library) need a full Android build,
   a new `version`, and everyone installing the new build once.
+
+## iPhone (TestFlight)
+
+Needs an Apple Developer Program membership (developer.apple.com/programs). iPhone builds are made on Expo's servers, so no Mac is needed.
+
+First build, once, from a Windows or Mac computer with Node.js installed:
+
+```
+npm install -g eas-cli
+git clone https://github.com/Chrisfowell/eft-todo-app.git
+cd eft-todo-app
+eas login
+eas build --platform ios --profile production --auto-submit
+```
+
+Sign in with your Apple ID when asked and let Expo create the certificates. The build is uploaded to App Store Connect, then appears in TestFlight. After this, iPhone builds can also be started from the Expo dashboard, and everyday changes reach iPhones through the same automatic updates as Android.

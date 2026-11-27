@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "preview": {
@@ -23,7 +23,16 @@
         "EAS_NO_FROZEN_LOCKFILE": "1"
       },
       "node": "22.14.0",
-      "channel": "production"
+      "channel": "production",
+      "ios": {
+        "autoIncrement": true
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
     }
   }
 }

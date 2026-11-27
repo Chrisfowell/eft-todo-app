@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../supabase';
 import { useColors } from '../theme';
@@ -43,7 +43,7 @@ export function Login() {
   };
 
   return (
-    <KeyboardAvoidingView behavior="height" style={{ flex: 1, backgroundColor: c.bg }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={[s.band, { backgroundColor: c.band, paddingTop: insets.top + 24 }]}>
         <Image source={require('../../assets/logo.png')} style={s.logo} accessibilityLabel="EFT Group" />
         <Text style={s.title}>EFT To-Do</Text>

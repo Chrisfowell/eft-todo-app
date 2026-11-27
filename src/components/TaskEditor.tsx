@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Platform,
   Modal,
   Pressable,
   ScrollView,
@@ -90,7 +91,7 @@ export function TaskEditor({
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} transparent>
-      <KeyboardAvoidingView behavior="height" style={s.shade}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.shade}>
         <View
           style={[
             s.sheet,

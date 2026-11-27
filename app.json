@@ -34,6 +34,14 @@
       "url": "https://u.expo.dev/c3c0b769-aab9-4753-be12-683501dc70f1",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
+    },
+    "ios": {
+      "bundleIdentifier": "com.eftgroup.todo",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     }
   }
 }
